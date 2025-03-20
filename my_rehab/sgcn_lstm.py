@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from torch.nn import LSTM
 
 import os
 import numpy as np
@@ -9,7 +10,7 @@ import glob
 
 class Sgcn_Lstm(nn.Module):
     def __init__(self, input_dim, bias_mat_1, bias_mat_2):
-        super().__init__()
+        super(Sgcn_Lstm, self).__init__()
         self.bias_mat_1 = bias_mat_1
         self.bias_mat_2 = bias_mat_2
         self.num_joints = 25
@@ -288,43 +289,52 @@ class ConvLSTM(nn.Module):
         if not isinstance(param, list):
             param = [param] * num_layers
         return param
-    
+
+class GetLSTMOutput(nn.Module):
+    def forward(self, x):
+        out, _ = x
+        return out
+       
 class Lstm(nn.Module):
     def __init__(self):
-        super().__init__()
-
-        
-        self.lin = nn.Sequential(
-            nn.Linear(80, 1)
+        super(Lstm, self).__init__()
+        self.lstmS = nn.Sequential(
+            nn.LSTM(1200, 80, dropout=0.25),
+            GetLSTMOutput(),
+            nn.LSTM(80, 40, dropout=0.25),
+            GetLSTMOutput(),
+            nn.LSTM(40, 40, dropout=0.25),
+            GetLSTMOutput(),
+            nn.LSTM(40, 80, dropout=0.25)
         )
-
-    def lstm(self, input_dim, output_dim, x, return_sequences=False):
-        lstm = nn.LSTM(input_dim, output_dim, dropout=0.25)
-        out = lstm(x)
-        if return_sequences:#true
-            out, _ = out
-        else:#False
-            _, out = out
-        return out
+        self.lin = nn.Sequential(
+            nn.Linear(283*80, 1)
+        )
 
     def forward(self, x):
         x = torch.reshape(x, (-1, x.shape[0], x.shape[1]*x.shape[-1])) # _,48,_,25 time,b,1200
-        
-        out = self.lstm(x.shape[-1], 80, x, return_sequences=True)
-        out = self.lstm(out.shape[-1], 40, out, return_sequences=True)
-        out = self.lstm(out.shape[-1], 40, out, return_sequences=True)
-        h_n, c_n = self.lstm(out.shape[-1], 80, out)
-        last=h_n.squeeze(0)
- 
+        # out = self.lstm(x.shape[-1], 80, x, return_sequences=True)
+        # out = self.lstm(out.shape[-1], 40, out, return_sequences=True)
+        # out = self.lstm(out.shape[-1], 40, out, return_sequences=True)
+        # h_n, c_n = self.lstm(out.shape[-1], 80, out)
+
+        h_n, c_n = self.lstmS(x)
+        last=h_n.transpose(0,1)
+        last = last.reshape(-1, last.shape[1]*last.shape[-1])
+
         lin = self.lin(last)
         return lin
-
+    
+    
 class train_network(nn.Module):
     def __init__(self,
                  input_dim = [3, 48, 48],
                  bias_mat_1=None,
                  bias_mat_2=None):
         super().__init__()
+        self.bias_mat_1 = bias_mat_1
+        self.bias_mat_2 = bias_mat_2
+
         self.sgcn1 = Sgcn_Lstm(input_dim[0], bias_mat_1, bias_mat_2)
         self.sgcn2 = Sgcn_Lstm(input_dim[1], bias_mat_1, bias_mat_2)
         self.sgcn3 = Sgcn_Lstm(input_dim[2], bias_mat_1, bias_mat_2)
@@ -338,20 +348,22 @@ class train_network(nn.Module):
         z = self.sgcn3(y)
         z = z + y
         out = self.lstm(z)
+
         return out
     
-class traincell(nn.Sequential):
-     def __init__(self,
-                 AD=None,
-                 AD2=None,
-                 bias_mat_1=None,
-                 bias_mat_2=None):
+# class traincell(nn.Sequential):
+#      def __init__(self,
+#                  AD=None,
+#                  AD2=None,
+#                  bias_mat_1=None,
+#                  bias_mat_2=None):
         
-        self.AD = AD
-        self.AD2 = AD2
-        self.bias_mat_1 = bias_mat_1
-        self.bias_mat_2 = bias_mat_2
+#         self.AD = AD
+#         self.AD2 = AD2
+#         self.bias_mat_1 = bias_mat_1
+#         self.bias_mat_2 = bias_mat_2
 
-        super().__init__(
-                train_network(input_dim=[3,48,48],bias_mat_1=self.bias_mat_1, bias_mat_2=self.bias_mat_2)
-            )
+
+#         super().__init__(
+#                 train_network(input_dim=[3,48,48],bias_mat_1=self.bias_mat_1, bias_mat_2=self.bias_mat_2)
+#             )
