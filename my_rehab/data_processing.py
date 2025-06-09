@@ -34,12 +34,15 @@ index_Tip_Right=92    # no orientation
 index_Thumb_Right=96  # no orientation
 
 class Data_set():
-    def __init__(self, dir, dir_label, no_scale=None):
+    def __init__(self, dir, scale:str='Y scailing'):
         self.num_repitation = 5
         self.num_channel = 3
         self.dir = dir
-        self.dir_label = dir_label
-        self.no_scale=no_scale
+        self.ppc = ppc.FrameProcessWrapper('max', 'repeat')
+        self.sc1 = StandardScaler()
+        self.sc2 = StandardScaler()
+        # self.dir_label = dir_label
+        self.scale=scale
         self.body_part = self.body_parts()       
         self.dataset = []
         self.sequence_length = []
@@ -48,15 +51,17 @@ class Data_set():
         self.train_x, self.train_y= self.import_dataset()
         self.batch_size = self.train_y.shape[0]
         self.num_joints = len(self.body_part)
-        self.sc1 = StandardScaler()
-        self.sc2 = StandardScaler()
-        self.scaled_x, self.scaled_y = self.preprocessing()
+        # self.scaled_x, self.scaled_y = self.preprocessing()
                 
     def body_parts(self):
         if self.dir.find('KIMORE') == -1:
             body_parts = [0, 1, 2, 5, 6, 7, 8, 11 ,12, 
-                        91, 95, 99, 100, 103, 104, 107, 111, 
-                        112, 116, 120, 121, 124, 125, 128, 132]
+                       91, 95, 99, 100, 103, 104, 107, 111, 
+                       112, 116, 120, 121, 124, 125, 128, 132]
+            #[0, 5, 6, 7, 8, 9, 10,
+            #     93, 95, 96, 99, 100, 103, 104, 107, 108, 111,
+            #     114, 116, 117, 120, 121, 124, 125, 128, 129, 132]
+     
         else:
             body_parts = [index_Spine_Base, index_Spine_Mid, index_Neck, index_Head, index_Shoulder_Left, 
                         index_Elbow_Left, index_Wrist_Left, index_Hand_Left, index_Shoulder_Right, index_Elbow_Right, 
@@ -74,63 +79,70 @@ class Data_set():
     
     def import_dataset(self):
         heat_npy = pd.read_csv(self.dir).values.tolist()
-        heat_npy.sort()
+        # heat_npy.sort()
 
+        train_x = []
         train_y = []
+        print("\n there is ", self.scale, " Scaling.")
         for i, a in enumerate(heat_npy):
-            data = np.load(a[0])
+            data = self.ppc.doPreProc(np.load(a[0]).astype(np.float32))
             data = data.reshape(data.shape[0], 133, -1)
+            proc_x = data[:, self.body_part, :3]
 
-            if data.shape[1] * data.shape[2] == 532:
-                s2 = np.expand_dims(data[:, self.body_part, 0:-1:4], axis=-1)
-                s3 = np.expand_dims(data[:, self.body_part, 1:-1:4], axis=-1)
-                s4 = np.expand_dims(data[:, self.body_part, 2:-1:4], axis=-1)
-                train_x = np.concatenate((s2, s3, s4), axis=-1)
-                
-            # train_x = pd.read_csv(self.dir, header = None).iloc[:,:].values
-            # train_y = pd.read_csv(self.dir_label, header = None).iloc[:,:].values
-
-            # s2 = np.expand_dims(train_x[:, 0:-1:4], axis=-1)
-            # s3 = np.expand_dims(train_x[:, 1:-1:4], axis=-1)
-            # s4 = np.expand_dims(train_x[:, 2:-1:4], axis=-1)
-            # train_x = np.concatenate((s2, s3, s4), axis=-1)
-            train_x = train_x.reshape(-1, train_x[1]*train_x[-1])
-            train_y.append(a[1])
-        return train_x, np.array(train_y)
+            # if data.shape[1] * data.shape[2] == 532:
+            #     s2 = np.expand_dims(data[:, self.body_part, 0:-1:4], axis=-1)
+            #     s3 = np.expand_dims(data[:, self.body_part, 1:-1:4], axis=-1)
+            #     s4 = np.expand_dims(data[:, self.body_part, 2:-1:4], axis=-1)
+            #     proc_x = np.concatenate((s2, s3, s4), axis=-1)
             
-    def preprocessing(self):        
-        y_train = np.reshape(self.train_y,(-1,1))
-        X_train = self.train_x.reshape(-1, 75)
+
+            if 'x' in self.scale.lower():
+                proc_x= self.preprocessing_X(proc_x)
+            train_y.append(a[1])
+            train_x.append(proc_x)
+            print('\r Load DATA {} / {}'.format(i, len(heat_npy)), end='')
+        return train_x, self.preprocessing_Y(train_y)
+            
+    def preprocessing_X(self, X_train):        
+        X_train = X_train.reshape(-1, self.num_joints)
         X_train = self.sc1.fit_transform(X_train)         
-        y_train = self.sc2.fit_transform(y_train)
 
+        X_train = X_train.reshape(-1, self.num_joints, 3)
+        return X_train
+    
+    def preprocessing_Y(self, Y_train):
+        y_train = np.reshape(Y_train, (-1,1))
+        if 'y' in self.scale.lower():
+            y_train = self.sc2.fit_transform(y_train)
 
-        X_train = self.train_x.reshape(-1, 25, 3)
-        return X_train, y_train
+        return y_train
 
     def __len__(self):
-        return len(self.train_y)
+        assert len(self.train_x) == len(self.train_y)
+        return len(self.train_y) 
     
     def __getitem__(self, index):
         
-        if self.no_scale:
-            data = self.train_x[index]
-            label = self.train_y[index]
+        # if self.no_scale:
+        #     data = self.train_x[index]
+        #     label = self.train_y[index]
 
 
-        data = self.scaled_x[index]
-        label = self.scaled_y[index]
+        data = np.transpose(self.train_x[index], (2, 0, 1))
+        data = np.expand_dims(data, axis=-1)
+        label = self.train_y[index]
 
         return data, label
     
+
+
+
 class NRC_Data_set(Dataset):
     def __init__(self, dir, no_scale=None):
 
+        self.y_save=[]
         self.ppc = ppc.FrameProcessWrapper('max', 'repeat')
         self.num_channel = 3
-
-        if dir is False:
-            dir = ppc.dosplit(d)
         self.dir = dir
         self.no_scale=no_scale
         self.body_part = self.body_parts()   
@@ -145,9 +157,13 @@ class NRC_Data_set(Dataset):
         # self.scaled_x, self.scaled_y = self.preprocessing()
                 
     def body_parts(self):
-        body_parts = [0, 1, 2, 5, 6, 7, 8, 9, 10,
-                    91, 93, 95, 96, 99, 103, 107, 111, 
-                    112, 114, 116, 117, 120, 124, 128, 132]
+        # body_parts = [0, 1, 2, 5, 6, 7, 8, 9, 10,
+        #             91, 93, 95, 96, 99, 103, 107, 111, 
+        #             112, 114, 116, 117, 120, 124, 128, 132]
+
+        body_parts = [0, 5, 6, 7, 8, 9, 10,
+                93, 95, 96, 99, 100, 103, 104, 107, 108, 111,
+                114, 116, 117, 120, 121, 124, 125, 128, 129, 132]
 
         return body_parts
     
@@ -175,20 +191,21 @@ class NRC_Data_set(Dataset):
 
             label = a[1]*100 
             train_y.append(label)
+            
             print('\r Load DATA {} / {}'.format(i, len(heat_npy)), end='')
-
+        self.y_save = train_y
         train_y = self.sc2.fit_transform(np.reshape(train_y,(-1,1)))
         return train_x, train_y
             
-    def preprocessing(self):        
-        y_train = np.reshape(self.train_y,(-1,1))
-        X_train = np.array(self.train_x).reshape(-1, 75)
-        X_train = self.sc1.fit_transform(X_train)         
-        y_train = self.sc2.fit_transform(y_train)
+    # def preprocessing(self):        
+    #     y_train = np.reshape(self.train_y,(-1,1))
+    #     X_train = np.array(self.train_x).reshape(-1, 75)
+    #     X_train = self.sc1.fit_transform(X_train)         
+    #     y_train = self.sc2.fit_transform(y_train)
 
 
-        X_train = self.train_x.reshape(-1, 25, 3)
-        return X_train, y_train
+    #     X_train = self.train_x.reshape(-1, 25, 3)
+    #     return X_train, y_train
     
 
     def __len__(self):
@@ -199,3 +216,4 @@ class NRC_Data_set(Dataset):
         data = self.train_x[index]
         label = self.train_y[index]
         return data, label
+
