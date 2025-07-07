@@ -34,8 +34,8 @@ class Graph():
                     for neighbour_of_neigbour in range(A.shape[0]):
                         if A[neighbour, neighbour_of_neigbour] == 1:
                             A2[root,neighbour_of_neigbour] = 1                 
-        #AD = self.normalize(A)
-        #AD2 = self.normalize(A2)
+        AD = self.normalize(A)
+        AD2 = self.normalize(A2)
         bias_mat_1 = np.zeros(A.shape)
         bias_mat_2 = np.zeros(A2.shape)
         bias_mat_1 = np.where(A!=0, bias_mat_1, -1e9)

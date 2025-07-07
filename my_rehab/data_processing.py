@@ -34,14 +34,25 @@ index_Tip_Right=92    # no orientation
 index_Thumb_Right=96  # no orientation
 
 class Data_set():
-    def __init__(self, dir, scale:str='Y scailing'):
+    def __init__(self, dir, scale:str='Y scailing', cmd={'ADL':['BIA', 'UNI', 'ROM']}):
         self.num_repitation = 5
         self.num_channel = 3
         self.dir = dir
-        self.ppc = ppc.FrameProcessWrapper('max', 'repeat')
+        self.ppc = ppc.FrameProcessWrapper('custom', 'repeat',  ceiling=288)
         self.sc1 = StandardScaler()
         self.sc2 = StandardScaler()
         # self.dir_label = dir_label
+        self.cmd = cmd
+        # self.scaled_x, self.scaled_y = self.preprocessing()
+
+        self.cate = {'ADL':{'BIA':[6,7,8], 'BIS':[9, 10], 'UNI': [1,2,3,4,5]},
+                         'ROM':{'BIA':[11,12,13,14], 'BIS':[15], 'UNI': []}}
+        self.categorial = []
+        for k in list(self.cmd.keys()):
+
+            for ci in self.cate[k]:
+                self.categorial += self.cate[k][ci]
+                
         self.scale=scale
         self.body_part = self.body_parts()       
         self.dataset = []
@@ -49,9 +60,10 @@ class Data_set():
         self.num_timestep = 100
         self.new_label = []
         self.train_x, self.train_y= self.import_dataset()
+        print("whole data num:",self.__len__())
         self.batch_size = self.train_y.shape[0]
         self.num_joints = len(self.body_part)
-        # self.scaled_x, self.scaled_y = self.preprocessing()
+        
                 
     def body_parts(self):
         if self.dir.find('KIMORE') == -1:
@@ -83,8 +95,10 @@ class Data_set():
 
         train_x = []
         train_y = []
-        print("\n there is ", self.scale, " Scaling.")
+        #print("\n there is ", self.scale, " Scaling.")
         for i, a in enumerate(heat_npy):
+            if int(a[0][-6:-4]) not in self.categorial:
+                continue
             data = self.ppc.doPreProc(np.load(a[0]).astype(np.float32))
             data = data.reshape(data.shape[0], 133, -1)
             proc_x = data[:, self.body_part, :3]
@@ -100,7 +114,8 @@ class Data_set():
                 proc_x= self.preprocessing_X(proc_x)
             train_y.append(a[1])
             train_x.append(proc_x)
-            print('\r Load DATA {} / {}'.format(i, len(heat_npy)), end='')
+            #print('\r Load DATA {} / {}'.format(i, len(heat_npy)), end='')
+
         return train_x, self.preprocessing_Y(train_y)
             
     def preprocessing_X(self, X_train):        

@@ -1,11 +1,11 @@
+'''
+you don't need to look this code. just ignore
+'''
+
 import torch
 from torch import nn
 from torch.nn import LSTM
 
-import os
-import numpy as np
-import pandas as pd
-import glob
 
 
 class Sgcn_Lstm(nn.Module):

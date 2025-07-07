@@ -1,3 +1,4 @@
+import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -61,13 +62,13 @@ class Model(nn.Module):
             #origin
             st_gcn(in_channels, 64, kernel_size, 1, residual=False, **kwargs0),
             st_gcn(64, 64, kernel_size, 1, **kwargs),
-            # st_gcn(16, 16, kernel_size, 1, **kwargs),
-            # st_gcn(16, 16, kernel_size, 1, **kwargs),
+            st_gcn(64, 64, kernel_size, 1, **kwargs),
+            st_gcn(64, 64, kernel_size, 1, **kwargs),
             st_gcn(64, 128, kernel_size, 2, **kwargs),
-            # st_gcn(32, 32, kernel_size, 1, **kwargs),
-            # st_gcn(32, 32, kernel_size, 1, **kwargs),
+            st_gcn(128, 128, kernel_size, 1, **kwargs),
+            st_gcn(128, 128, kernel_size, 1, **kwargs),
             st_gcn(128, 256, kernel_size, 2, **kwargs),
-            # st_gcn(64, 64, kernel_size, 1, **kwargs),
+            st_gcn(256, 256, kernel_size, 1, **kwargs),
             st_gcn(256, 256, kernel_size, 1, **kwargs),
         ))
 
@@ -87,19 +88,25 @@ class Model(nn.Module):
         self.fcn = nn.Linear(64, 1)
 
     def forward(self, x):
-
+        #import numpy as np
         # data normalization
-        N, C, T, V, M = x.size()
-        x = x.permute(0, 4, 3, 1, 2).contiguous()
-        x = x.view(N * M, V * C, T)
-        x = self.data_bn(x)
+        N, C, T, V, M = x.size() # 64 3 288 25 1
+        x = x.permute(0, 4, 3, 1, 2).contiguous()# 64 1 25 3 288
+        x = x.view(N * M, V * C, T)# 64 75 288
+        #np.save("test1",x.permute(0,2,1).detach().cpu().numpy())
+        #x = self.data_bn(x)
+
+        #np.save("test2",x.permute(0,2,1).detach().cpu().numpy())
+        # print(x)
+        # sys.exit()
         x = x.view(N, M, V, C, T)
         x = x.permute(0, 1, 3, 4, 2).contiguous()
         x = x.view(N * M, C, T, V)
 
         # forwad
         for gcn, importance in zip(self.st_gcn_networks, self.edge_importance):
-            x, _ = gcn(x, self.A * importance)
+            x, a = gcn(x, self.A * importance)
+            # self.gcn_
 
 
         '''
@@ -119,6 +126,8 @@ class Model(nn.Module):
         '''
            Temporal Attention + mlp prediction head
         '''
+        self.after_GCN = x
+        self.adjac = a
         x = self.temp_att(x)
 
         return x
@@ -221,11 +230,14 @@ class st_gcn(nn.Module):
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x, A):
+ 
         #print("bf stgcn:", x.shape)
         res = self.residual(x)
         x, A = self.gcn(x, A)
+
         x = self.tcn(x) + res
         #print(x.shape)
         #x = x + res
         #print("af stgcn:", x.shape)
         return self.relu(x), A
+    

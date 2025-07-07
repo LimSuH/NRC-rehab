@@ -63,10 +63,10 @@ class TA_Wraper(nn.Module):
                  in_channels=64,
                  embed_dim=64,
                  num_heads=8,
-                 hidden_dim=128):
+                 hidden_dim=64):
         super().__init__()
         self.reg_head = RegressionHead(in_channels=in_channels, hidden_dim=hidden_dim)
-        self.temporal_attention= MultiHeadAttention(embed_dim=embed_dim, num_heads=num_heads)
+        self.temporal_attention= MultiHeadAttention(embed_dim=in_channels, num_heads=num_heads)
 
     def forward(self, x):
         B, C, T, V = x.shape
