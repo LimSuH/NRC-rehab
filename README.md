@@ -10,3 +10,7 @@ https://github.com/fokhruli/STGCN-rehab
 <pre><code>
 python my-rehab/train.py -ex ..  
 </code></pre>
+
+### 유빈님께
+my_rehab에 있는 파일들만 보시면 됩니다.  
+주피터 노트북은 실행 확인용이니 안보셔도 돼요~  
