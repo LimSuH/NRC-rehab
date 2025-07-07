@@ -45,8 +45,9 @@ my_parser.add_argument('--ex_train', type=str, default='/home/neuronS1/NRC/forTr
 my_parser.add_argument('--ex_test', type=str, default='/home/neuronS1/NRC/forTrueSTGCN_test.csv',
                        help='the name of exercise.')
 my_parser.add_argument("--workdir", type=str, default="/home/neuronS1/NRC/my_rehab/caseRecord")
+my_parser.add_argument("--category_cmd", type=dict, default={'ADL':['BIA', 'UNI', 'BIS'], 'ROM':['BIA', 'UNI', 'BIS']})
 
-my_parser.add_argument('--epoch', type=int, default= 100,
+my_parser.add_argument('--epoch', type=int, default= 200,
                        help='number of epochs to train.')
 my_parser.add_argument('--batch_size', type=int, default= 64,
                        help='training batch size.')
@@ -156,12 +157,12 @@ beta2= 0.999
 
 """import the whole dataset"""
 train_file= args.ex_train
-trainDataset = Data_set(train_file)  # folder name -> Train.csv, Test.csv
+trainDataset = Data_set(train_file, cmd=args.category_cmd)  # folder name -> Train.csv, Test.csv
 graph = Graph(len(trainDataset.body_part))
 trainLoader = DataLoader(trainDataset, batch_size=batch_size)
 
 test_file= args.ex_test
-testDataset = Data_set(test_file)  # folder name -> Train.csv, Test.csv
+testDataset = Data_set(test_file, cmd=args.category_cmd)  # folder name -> Train.csv, Test.csv
 testLoader = DataLoader(testDataset, batch_size=16)
 
 def call_with_log(func, *args, **kwargs):
