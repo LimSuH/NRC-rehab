@@ -1,0 +1,57 @@
+m              : this is example log from RAST-G@ training.
+ex_train       : your_train_data.csv
+ex_test        : your_test_data.csv
+workdir        : RAST-G@/caseRecord
+skeleton       : NRC_25
+scailing       : Y
+category_cmd   : {'ADL': ['BIA', 'UNI', 'BIS'], 'ROM': ['BIA', 'UNI', 'BIS']}
+epoch          : 200
+batch_size     : 64
+lr             : 0.003
+num_heads      : 8
+input_frame    : 288
+log URL:       : https://your wandb url
+
+model info:
+[STGCN]
+ st_gcn(
+  (gcn): ConvTemporalGraphical(
+    (conv): Conv2d(3, 192, kernel_size=(1, 1), stride=(1, 1))
+  )
+  (tcn): Sequential(
+    (0): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (1): ReLU(inplace=True)
+    (2): Conv2d(64, 64, kernel_size=(3, 1), stride=(1, 1), padding=(1, 0))
+    (3): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (4): Dropout(p=0.3, inplace=True)
+  )
+  (relu): ReLU(inplace=True)
+)
+[Temporal Attention]
+ TA_Wraper(
+  (reg_head): RegressionHead(
+    (pool): AdaptiveAvgPool2d(output_size=(1, 1))
+    (regressor): Sequential(
+      (0): Linear(in_features=256, out_features=128, bias=True)
+      (1): ReLU(inplace=True)
+      (2): Linear(in_features=128, out_features=1, bias=True)
+    )
+  )
+  (temporal_attention): MultiHeadAttention(
+    (q_proj): Linear(in_features=256, out_features=256, bias=True)
+    (k_proj): Linear(in_features=256, out_features=256, bias=True)
+    (v_proj): Linear(in_features=256, out_features=256, bias=True)
+    (out_proj): Linear(in_features=256, out_features=256, bias=True)
+  )
+)
+in_channels : 3
+out_channels : 256
+graph_args : {'layout': 'NRC_25', 'strategy': 'spatial'}
+edge_importance_weighting : False
+temporal_kernel_size : 3
+output_dim : 1
+num_heads : 8
+kwargs : {}
+optimizer info: class AdamW(Optimizer):
+loss info: class HuberLoss(_Loss):
+	delta:  0.1
